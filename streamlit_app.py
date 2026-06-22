@@ -1,151 +1,84 @@
 import streamlit as st
-import pandas as pd
-import math
-from pathlib import Path
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+import io
 
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
+st.set_page_config(page_title="تقرير دورية", layout="centered", page_icon="🛡️")
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+st.title("🛡️ توليد تقرير دورية سوري")
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+with st.sidebar:
+    st.header("📋 إعدادات التقرير")
+    date_day = st.text_input("اليوم (مثال: الأحد 19)", value="الأحد 19")
+    month = st.number_input("الشهر", value=6, step=1)
+    year = st.number_input("السنة", value=2026, step=1)
+    report_number = st.text_input("رقم الدورية", value="11631")
+    official_name = st.text_input("مسؤول الدورية", value="رامي يونس")
+    section = st.text_input("القسم", value="قسم الطرق الدولية")
+    start_time = st.text_input("ساعة البدء", value="(014560)3:43")
+    hours = st.text_input("عدد الساعات", value="لا يوجد")
+    incidents = st.text_input("عدد الحوادث", value="(014590)4:03")
+    stops = st.text_input("عدد التوقيف", value="لا يوجد")
+    reports_count = st.number_input("عدد البلاغات", value=1)
+    human_status = st.text_input("الحالة الإنسانية", value="رقم الضبط")
+    phone = st.text_input("الإيصاءي", value="375 267591 3841218")
+    
+    submit = st.button("🖼️ توليد التقرير", type="primary", use_container_width=True)
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
-
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
-
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
-
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
-
-    return gdp_df
-
-gdp_df = get_gdp_data()
-
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
-
-
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f'GDP in {to_year}', divider='gray')
-
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
+if submit:
+    with st.spinner("جاري إنشاء الصورة الرسمية..."):
+        fig = plt.figure(figsize=(10, 12), facecolor='#003d1e')
+        ax = fig.add_axes([0, 0, 1, 1])
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 12)
+        ax.axis('off')
+        
+        # الإطار الخارجي
+        outer = Rectangle((0.1, 0.1), 9.8, 11.8, linewidth=4, edgecolor='#D4AF37', facecolor='none')
+        ax.add_patch(outer)
+        
+        # الشعار النصي
+        ax.text(0.4, 11.2, '🦅', fontsize=80, ha='center', va='center', color='#FFD700', zorder=2)
+        ax.text(5, 11.3, 'تقرير دورية', fontsize=32, fontweight='bold', ha='center', va='center', color='#FFD700', zorder=3)
+        
+        data = [
+            ('اليوم', date_day),
+            ('الشهر', str(month)),
+            ('السنة', str(year)),
+            ('رقم الدورية', report_number),
+            ('مسؤول الدورية', official_name),
+            ('القسم', section),
+            ('ساعة البدء', start_time),
+            ('عدد الساعات', hours),
+            ('عدد الحوادث', incidents),
+            ('عدد التوقيف', stops),
+            ('عدد البلاغات', str(reports_count)),
+            ('الحالة الإنسانية', human_status),
+            ('الإيصاءي', phone)
+        ]
+        
+        y = 10.0
+        for label, value in data:
+            ax.text(0.8, y, label + ':', fontsize=13, color='#FFD700', ha='left', va='top', fontweight='bold')
+            ax.text(4.2, y, value, fontsize=13, ha='right', va='top')
+            y -= 0.68
+        
+        # النبذة
+        ax.text(0.8, 1.3, 'النبذة', fontsize=16, fontweight='bold', color='#FFD700')
+        ax.text(0.8, 0.95, 'تم إعداد هذا التقرير بواسطة نظام Manus AI', fontsize=11, ha='left')
+        
+        # حفظ الصورة
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight', facecolor='#003d1e', edgecolor='#D4AF37')
+        img_buffer.seek(0)
+        plt.close()
+        
+        st.image(img_buffer, caption="تقرير دوري جاهز", use_column_width=True)
+        st.download_button(
+            label="⬇️ تحميل الصورة (PNG)",
+            data=img_buffer,
+            file_name="تقرير_دورية.png",
+            mime="image/png",
+            use_container_width=True
         )
+        st.success("✅ تم إنشاء التقرير بنجاح!")
